@@ -26,6 +26,13 @@ export default function DataTable(props: any) {
 		options.current.ajax = props.ajax;
 	}
 
+	if (options.current.columns) {
+		applyRenderers(options.current.columns, props.slots ?? {});
+	}
+
+	// // If column definations are present, they might need a component renderer
+	// applyRenderers(options.current.columnDefs ?? [], props.slots);
+
 	useEffect(() => {
 		if (!DataTablesLib) {
 			throw new Error('DataTables library not set. See https://datatables.net/tn/19 for details.');
@@ -48,19 +55,6 @@ export default function DataTable(props: any) {
 					table$.on(name + '.dt', props[onName]);
 				}
 			});
-
-			options.current.columns[1].render = function (data: any, type: string, row: any) {
-				if (type === 'display') {
-					let div = document.createElement('div');
-
-					let root = createRoot(div);
-					root.render(props.named(data, row));
-
-					return div;
-				}
-
-				return data;
-			};
 
 			// Initialise the DataTable
 			(table as any).current = new DataTablesLib(tableEl.current, options.current);
@@ -101,12 +95,23 @@ DataTable.use = function (lib: DTType<any>) {
 	DataTablesLib = lib;
 };
 
-// Object.defineProperty(DataTable, "lib", {
-// 	get() {
-// 		return DataTablesLib;
-// 	},
+function applyRenderers(columns: any[], slots: any) {
+	columns.forEach((col, idx) => {
+		let slot = slots[idx] || slots[col.name];
 
-// 	set(lib: DTType<any>) {
-// 		DataTablesLib = lib;
-// 	}
-// });
+		if (slot) {
+			col.render = function (data: any, type: string, row: any) {
+				if (type === 'display') {
+					let div = document.createElement('div');
+					let root = createRoot(div);
+
+					root.render(slot(data, row));
+
+					return div;
+				}
+
+				return data;
+			};
+		}
+	});
+}
