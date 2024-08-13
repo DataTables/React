@@ -18,24 +18,24 @@ export default function DataTable(props: any) {
 		options.current.data = props.data;
 	}
 
-	if (props.columns) {
-		options.current.columns = props.columns;
-	}
-
 	if (props.ajax) {
 		options.current.ajax = props.ajax;
 	}
 
-	if (options.current.columns) {
-		applyRenderers(options.current.columns, props.slots ?? {});
+	if (props.columns) {
+		options.current.columns = props.columns;
 	}
 
-	// // If column definations are present, they might need a component renderer
-	// applyRenderers(options.current.columnDefs ?? [], props.slots);
+	// If slots are defined, create `columnDefs` entries for them to apply
+	// to their target columns.
+	if (props.slots) {
+		applySlots(options.current, props.slots);
+	}
 
+	// Create the DataTable when the `<table>` is ready in the document
 	useEffect(() => {
 		if (!DataTablesLib) {
-			throw new Error('DataTables library not set. See https://datatables.net/tn/19 for details.');
+			throw new Error('DataTables library not set. See https://datatables.net/tn/23 for details.');
 		}
 
 		if (tableEl.current) {
@@ -68,6 +68,7 @@ export default function DataTable(props: any) {
 		};
 	}, []);
 
+	// On data change, clear and redraw
 	useEffect(() => {
 		if (props.data) {
 			if (table.current) {
@@ -95,23 +96,59 @@ DataTable.use = function (lib: DTType<any>) {
 	DataTablesLib = lib;
 };
 
-function applyRenderers(columns: any[], slots: any) {
-	columns.forEach((col, idx) => {
-		let slot = slots[idx] || slots[col.name];
+/**
+ * Loop over the slots defined and apply them to their columns,
+ * targeting based on the slot name (object key).
+ *
+ * @param options DataTables configuration object
+ * @param slots Props passed in
+ */
+function applySlots(options: any, slots: any) {
+	if (! options.columnDefs) {
+		options.columnDefs = [];
+	}
 
-		if (slot) {
-			col.render = function (data: any, type: string, row: any) {
-				if (type === 'display') {
-					let div = document.createElement('div');
-					let root = createRoot(div);
+	Object.keys(slots).forEach(name => {
+		let slot = slots[name];
 
-					root.render(slot(data, row));
-
-					return div;
-				}
-
-				return data;
-			};
+		// Simple column index
+		if (name.match(/^\d+$/)) {
+			// Note that unshift is used to make sure that this property is
+			// applied in DataTables _after_ the end user's own options, if
+			// they've provided any.
+			options.columnDefs.unshift({
+				target: parseInt(name),
+				render: slotRenderer(slot)
+			});
+		}
+		else {
+			// Column name
+			options.columnDefs.unshift({
+				target: name + ':name',
+				render: slotRenderer(slot)
+			});
 		}
 	});
+}
+
+/**
+ * Create a rendering function that will create a React component
+ * for a cell's rendering function.
+ *
+ * @param slot React component
+ * @returns Rendering function
+ */
+function slotRenderer(slot: any) {
+	return function (data: any, type: string, row: any) {
+		if (type === 'display') {
+			let div = document.createElement('div');
+			let root = createRoot(div);
+
+			root.render(slot(data, row));
+
+			return div;
+		}
+
+		return data;
+	};
 }
