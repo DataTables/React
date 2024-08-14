@@ -49,6 +49,12 @@ export interface DataTableProps {
 	 * render.
 	 */
 	slots?: DataTableSlots;
+
+	/**
+	 * Event listeners. Please refer to the DT docs for details on the event
+	 * listeners available. The names are camelCase here.
+	 */
+	[key: `on${string}`]: Function;
 }
 
 export default function DataTable(props: PropsWithChildren<DataTableProps>) {
