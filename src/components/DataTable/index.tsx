@@ -6,15 +6,10 @@ import dtEvents from './events';
 import type DTType from 'datatables.net';
 import type {
 	Api as DTApiType,
-	Config as DTConfig,
-	CellMetaSettings as DTRenderMeta
+	Config as DTConfig
 } from 'datatables.net';
 
 let DataTablesLib: DTType<any> | null = null;
-
-type DataTableCellCache = {
-	[key: string]: HTMLDivElement
-};
 
 export type DataTableSlot = 
 	((data: any, row: any) => React.JSX.Element) |
@@ -60,7 +55,6 @@ export default function DataTable(props: PropsWithChildren<DataTableProps>) {
 	const tableEl = useRef<HTMLTableElement | null>(null);
 	const table = useRef<DTApiType<any> | null>(null);
 	const options = useRef(props.options ?? {});
-	const slotCache = useRef({});
 
 	// Expose some of the more common settings as props
 	if (props.data) {
@@ -78,7 +72,7 @@ export default function DataTable(props: PropsWithChildren<DataTableProps>) {
 	// If slots are defined, create `columnDefs` entries for them to apply
 	// to their target columns.
 	if (props.slots) {
-		applySlots(slotCache.current, options.current, props.slots);
+		applySlots(options.current, props.slots);
 	}
 
 	// Create the DataTable when the `<table>` is ready in the document
@@ -152,7 +146,7 @@ DataTable.use = function (lib: DTType<any>) {
  * @param options DataTables configuration object
  * @param slots Props passed in
  */
-function applySlots(cache: DataTableCellCache, options: DTConfig, slots: DataTableSlots) {
+function applySlots(options: DTConfig, slots: DataTableSlots) {
 	if (! options.columnDefs) {
 		options.columnDefs = [];
 	}
@@ -171,14 +165,14 @@ function applySlots(cache: DataTableCellCache, options: DTConfig, slots: DataTab
 			// they've provided any.
 			options.columnDefs!.unshift({
 				target: parseInt(name),
-				render: slotRenderer(cache, slot)
+				render: slotRenderer(slot)
 			});
 		}
 		else {
 			// Column name
 			options.columnDefs!.unshift({
 				target: name + ':name',
-				render: slotRenderer(cache, slot)
+				render: slotRenderer(slot)
 			});
 		}
 	});
@@ -191,8 +185,8 @@ function applySlots(cache: DataTableCellCache, options: DTConfig, slots: DataTab
  * @param slot Function to create react component or orthogonal data
  * @returns Rendering function
  */
-function slotRenderer(cache: DataTableCellCache, slot: DataTableSlot) {
-	return function (data: any, type: string, row: any, meta: DTRenderMeta) {
+function slotRenderer(slot: DataTableSlot) {
+	return function (data: any, type: string, row: any) {
 		if (slot.length === 3) {
 			// The function takes three parameters so it allows for
 			// orthogonal data - not possible to cache the response
@@ -206,29 +200,20 @@ function slotRenderer(cache: DataTableCellCache, slot: DataTableSlot) {
 		// Otherwise, we are expecting a JSX return from the function every
 		// time and we can cache it. Note the `slot as any` - Typescript
 		// doesn't appear to like the two argument option for `DataTableSlot`.
-		return slotCache(cache, meta.row, meta.col, () => (slot as any)(data, row));
+		return slotCache(() => (slot as any)(data, row));
 	};
 }
 
 /**
  * Render a slot's element and cache it
  */
-function slotCache(cache: DataTableCellCache, row: number, column: number, create: Function) {
-	let idx = row + '_' + column;
-
-	// Have we got a cache for this cell already?
-	// if (cache[idx]) {
-	// 	return cache[idx];
-	// }
-
+function slotCache(create: Function) {
 	// Execute the rendering function
 	let result = create();
 
 	// If the result is a JSX element, we need to render and then cache it
 	if (result['$$typeof']) {
 		let div = renderJsx(result);
-
-		cache[idx] = div;
 
 		return div;
 	}
