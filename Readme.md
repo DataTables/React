@@ -1,7 +1,7 @@
 
 # DataTables component for React
 
-This library provides a Vue 3 component for [DataTables.net](https://datatables.net) to be used inside a [React application](https://react.dev/).
+This library provides a React component for [DataTables.net](https://datatables.net) to be used inside a [React application](https://react.dev/).
 
 
 ## Installation
