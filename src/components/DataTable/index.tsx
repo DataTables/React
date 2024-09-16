@@ -191,7 +191,7 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 	return (
 		<div>
 			<table ref={tableEl} className={props.className ?? ''}>
-				{props.children ?? ''}
+				{props.children ?? null}
 			</table>
 		</div>
 	);
