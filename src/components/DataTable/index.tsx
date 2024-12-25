@@ -225,7 +225,7 @@ function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) 
 		}
 
 		// Simple column index
-		if (name.match(/^\d+$/)) {
+		if (name.match(/^-?\d+$/)) {
 			// Note that unshift is used to make sure that this property is
 			// applied in DataTables _after_ the end user's own options, if
 			// they've provided any.
