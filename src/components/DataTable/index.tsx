@@ -19,7 +19,8 @@ type SlotCache = Root[];
 
 export type DataTableSlot =
 	| ((data: any, row: any) => React.JSX.Element)
-	| ((data: any, type: string, row: any) => any);
+	| ((data: any, type: string, row: any) => any)
+	| ((data: any, type: string, row: any, meta: object) => any);
 
 export type DataTableSlots = {
 	[key: string | number]: DataTableSlot;
@@ -252,8 +253,12 @@ function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) 
  * @returns Rendering function
  */
 function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
-	return function (data: any, type: string, row: any) {
-		if (slot.length === 3) {
+	return function (data: any, type: string, row: any, meta: object) {
+	        if (slot.length === 4) {
+			let result = slot(data, type, row, meta);
+			
+			return result['$$typeof'] ? renderJsx(cache, result) : result;
+		} else if (slot.length === 3) {
 			// The function takes three parameters so it allows for
 			// orthogonal data - not possible to cache the response
 			let result = slot(data, type, row);
