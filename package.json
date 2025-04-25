@@ -1,6 +1,6 @@
 {
 	"name": "datatables.net-react",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "React component for DataTables",
 	"main": "dist/index.js",
 	"module": "dist/index.mjs",

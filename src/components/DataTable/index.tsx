@@ -261,7 +261,7 @@ function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
 		} else if (slot.length === 3) {
 			// The function takes three parameters so it allows for
 			// orthogonal data - not possible to cache the response
-			let result = slot(data, type, row);
+			let result = slot(data, type, row, meta);
 
 			return result['$$typeof'] ? renderJsx(cache, result) : result;
 		}
