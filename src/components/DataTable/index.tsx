@@ -42,6 +42,9 @@ export interface DataTableProps {
 	/** Data to populate the DataTable */
 	data?: any[];
 
+	/** ID to assign to the `<table>` */
+	id?: string;
+
 	/**
 	 * DataTables configuration object.
 	 *
@@ -191,7 +194,7 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 
 	return (
 		<div>
-			<table ref={tableEl} className={props.className ?? ''}>
+			<table ref={tableEl} className={props.className ?? ''} id={props.id ?? ''}>
 				{props.children ?? null}
 			</table>
 		</div>
