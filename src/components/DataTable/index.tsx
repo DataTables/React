@@ -1,9 +1,10 @@
-import {createRoot, Root} from 'react-dom/client';
+import {createPortal} from 'react-dom';
 import {
 	forwardRef,
 	useEffect,
 	useImperativeHandle,
 	useRef,
+	useState,
 	ReactNode,
 	ForwardRefExoticComponent
 } from 'react';
@@ -15,7 +16,7 @@ import type {Api as DTApiType, Config as DTConfig} from 'datatables.net';
 
 let DataTablesLib: DTType<any> | null = null;
 
-type SlotCache = Root[];
+type SlotCache = Map<string, HTMLElement>;
 
 export type DataTableSlot =
 	| ((data: any, row: any) => React.JSX.Element)
@@ -107,7 +108,10 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 	const tableEl = useRef<HTMLTableElement | null>(null);
 	const table = useRef<DTApiType<any> | null>(null);
 	const options = useRef(props.options ?? {});
-	const cache = useRef<SlotCache>([]);
+
+	const cache = useRef<SlotCache>(new Map());
+	const portalsRef = useRef<Map<string, React.ReactPortal>>(new Map());
+	const [portals, setPortals] = useState<Map<string, React.ReactPortal>>(new Map());
 
 	// Expose the DataTables API via a reference
 	useImperativeHandle(ref, () => ({
@@ -125,12 +129,6 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 
 	if (props.columns) {
 		options.current.columns = props.columns;
-	}
-
-	// If slots are defined, create `columnDefs` entries for them to apply
-	// to their target columns.
-	if (props.slots) {
-		applySlots(cache.current, options.current, props.slots);
 	}
 
 	// Create the DataTable when the `<table>` is ready in the document
@@ -158,6 +156,28 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 					table$.on(name + '.dt', (props as any)[onName]);
 				}
 			});
+			
+			// If slots are defined, create `columnDefs` entries for them to apply
+			// to their target columns.
+			if (props.slots) {
+				applySlots(cache.current, options.current, props.slots);
+			}
+
+			// Because buldPortals renders portals for visible rows only,
+			// we need to fire the function any time we draw the table.
+			table$.on('draw.dt', () => {
+				if (!table.current) return;
+			
+				const newPortals = buildPortals(
+					table.current,
+					props.columns,
+					props.slots ?? {},
+					cache.current,
+				);
+			
+				portalsRef.current = newPortals;
+				setPortals(newPortals);
+			});
 
 			// Initialise the DataTable
 			table.current = new DataTablesLib(tableEl.current, options.current);
@@ -165,20 +185,19 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 
 		// Unmount tidy up
 		return () => {
-			if (table.current) {
-				// Unmount the created roots when this component unmounts
-				let roots = cache.current.slice();
-				cache.current.length = 0;
-
-				setTimeout(() => {
-					roots.forEach((r) => {
-						r.unmount();
-					});
-				}, 250);
-
+			// Remove the DataTable reference
+			if (table.current) {				
 				table.current.destroy();
 				table.current = null;
 			}
+			
+			// Clear the slot cache
+			if (cache.current) {
+				cache.current.clear();
+			}
+
+			// Unmount the created portals
+			setPortals(new Map());
 		};
 	}, []);
 
@@ -197,6 +216,7 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 			<table ref={tableEl} className={props.className ?? ''} id={props.id ?? ''}>
 				{props.children ?? null}
 			</table>
+			{Array.from(portals.values())}
 		</div>
 	);
 });
@@ -252,57 +272,90 @@ function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) 
  * Create a rendering function that will create a React component
  * for a cell's rendering function.
  *
+ * @param cache A map of the div for a cell
  * @param slot Function to create react component or orthogonal data
- * @returns Rendering function
+ * @returns Portal element, or raw value if the slot isn't JSX
  */
 function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
 	return function (data: any, type: string, row: any, meta: object) {
-	        if (slot.length === 4) {
-			let result = slot(data, type, row, meta);
-			
-			return result['$$typeof'] ? renderJsx(cache, result) : result;
-		} else if (slot.length === 3) {
-			// The function takes three parameters so it allows for
-			// orthogonal data - not possible to cache the response
-			let result = slot(data, type, row, meta);
+		const id = `${meta.row}-${meta.col}`;
 
-			return result['$$typeof'] ? renderJsx(cache, result) : result;
+		let result;
+		if (slot.length === 4) {
+			result = slot(data, type, row, meta);
+		} else if (slot.length === 3) {
+			result = slot(data, type, row, meta);
+		} else {
+			result = slot(data, row);
 		}
 
-		// Otherwise, we are expecting a JSX return from the function every
-		// time and we can cache it. Note the `slot as any` - Typescript
-		// doesn't appear to like the two argument option for `DataTableSlot`.
-		return slotCache(cache, () => (slot as any)(data, row));
+		// Return raw value if it isn't JSX
+		if (!result['$$typeof']) {
+			return result;
+		}
+
+		// Cache and return the portal element
+		if (!cache.has(id)) {
+			const container = document.createElement('div');
+			cache.set(id, container);
+		}
+
+		return cache.get(id);
 	};
 }
 
 /**
- * Render a slot's element and cache it
+ * Create React portals for visible DataTable rows
+ *
+ * @param table DataTables API instance
+ * @param columns Column configuration for the table
+ * @param slots Slot functions for custom rendering
+ * @param cache Cached DOM containers for slot output
+ * @returns Map of React portals keyed by cell position
  */
-function slotCache(cache: SlotCache, create: Function) {
-	// Execute the rendering function
-	let result = create();
+function buildPortals(
+	table: DTApiType<any>,
+	columns: DTConfig['columns'] = [],
+	slots: DataTableSlots = {},
+	cache: SlotCache
+): Map<string, React.ReactPortal> {
+	const portals = new Map<string, React.ReactPortal>();
 
-	// If the result is a JSX element, we need to render and then cache it
-	if (result['$$typeof']) {
-		let div = renderJsx(cache, result);
+	table.rows({ page: 'current' }).every(function () {
+		const rowIndex = this.index();
+		const rowData = this.data();
 
-		return div;
-	}
+		columns.forEach((col, colIndex) => {
+			const id = `${rowIndex}-${colIndex}`;
+			const container = cache.get(id);
+			if (!container) {
+				return;
+			}
 
-	// Any other data just gets returned
-	return result;
-}
+			const slot = slots[colIndex] || (col.name && slots[col.name]);
+			if (!slot) {
+				return;
+			}
 
-/**
- * Render JSX into a div which can be shown in a cell
- */
-function renderJsx(cache: SlotCache, jsx: React.JSX.Element): HTMLDivElement {
-	let div = document.createElement('div');
-	let root = createRoot(div);
+			const cellData = col.data ? rowData[col.data as string] : null;
+			let result;
+			if (slot.length === 4) {
+				result = slot(cellData, 'display', rowData, { row: rowIndex, col: colIndex });
+			} else if (slot.length === 3) {
+				result = slot(cellData, 'display', rowData, undefined);
+			} else {
+				result = slot(cellData, rowData);
+			}
 
-	root.render(jsx);
-	cache.push(root);
+			if (
+				typeof result === 'object' &&
+				result !== null &&
+				'$$typeof' in result
+			) {
+				portals.set(id, createPortal(result, container));
+			}
+		});
+	});
 
-	return div;
+	return portals;
 }
