@@ -338,7 +338,14 @@ function buildPortals(
 			}
 
 			const cellData = col.data ? rowData[col.data as string] : null;
-			const result = slot(cellData, rowData);
+			let result;
+			if (slot.length === 4) {
+				result = slot(cellData, 'display', rowData, { row: rowIndex, col: colIndex });
+			} else if (slot.length === 3) {
+				result = slot(cellData, 'display', rowData, undefined);
+			} else {
+				result = slot(cellData, rowData);
+			}
 
 			if (
 				typeof result === 'object' &&
