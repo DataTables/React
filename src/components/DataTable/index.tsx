@@ -277,14 +277,14 @@ function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) 
  * @returns Portal element, or raw value if the slot isn't JSX
  */
 function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
-	return function (data: any, type: string, row: any, meta: any) {
+	return function (data: any, type: string, row: any, meta: object) {
 		const id = `${meta.row}-${meta.col}`;
 
 		let result;
 		if (slot.length === 4) {
 			result = slot(data, type, row, meta);
 		} else if (slot.length === 3) {
-			result = slot(data, type, row);
+			result = slot(data, type, row, meta);
 		} else {
 			result = slot(data, row);
 		}
