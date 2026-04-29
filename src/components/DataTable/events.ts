@@ -1,4 +1,3 @@
-
 /*
  * List of events that DataTables can fire, so they can re-exported to React
  */
@@ -52,5 +51,5 @@ export default [
 	'selectItems',
 	'selectStyle',
 	'user-select',
-	'stateRestore-change',
+	'stateRestore-change'
 ];

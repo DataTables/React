@@ -82,19 +82,22 @@ export interface DataTableRef {
 
 /**
  * DataTables.net component for React.
- * 
+ *
  * Typically a child will be given to the component to define the table header,
  * although this is option if you use the `columns.title` option of DataTables
  * to define the columns and their titles.
- * 
+ *
  * See https://datatables.net/manual/react for details on how to use this
  * component.
  */
 export interface DataTableComponent
-	extends ForwardRefExoticComponent<DataTableProps & React.RefAttributes<DataTableRef>> {
+	extends ForwardRefExoticComponent<
+		DataTableProps & React.RefAttributes<DataTableRef>
+	> {
 	/**
-	 * Set the DataTables library to use for this component (e.g. the result from
-	 * `import DT from 'datatables.net-dt'` or `import DT from 'datatables.net-bs5'`).
+	 * Set the DataTables library to use for this component (e.g. the result
+	 * from `import DT from 'datatables.net-dt'` or `import DT from
+	 * 'datatables.net-bs5'`).
 	 *
 	 * @param dtLib DataTables core library
 	 * @returns
@@ -102,111 +105,126 @@ export interface DataTableComponent
 	use: (dtLib: DTType<any>) => void;
 }
 
-// any here, so we can assign the `use` later - it is really a DataTableComponent though
-const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTable(props, ref) {
-	const tableEl = useRef<HTMLTableElement | null>(null);
-	const table = useRef<DTApiType<any> | null>(null);
-	const options = useRef(props.options ?? {});
-	const cache = useRef<SlotCache>([]);
+// `any` here, so we can assign the `use` later - it is really a
+// DataTableComponent though
+const Component: any = forwardRef<DataTableRef, DataTableProps>(
+	function DataTable(props, ref) {
+		const tableEl = useRef<HTMLTableElement | null>(null);
+		const table = useRef<DTApiType<any> | null>(null);
+		const options = useRef(props.options ?? {});
+		const cache = useRef<SlotCache>([]);
 
-	// Expose the DataTables API via a reference
-	useImperativeHandle(ref, () => ({
-		dt: () => table.current
-	}));
+		// Expose the DataTables API via a reference
+		useImperativeHandle(ref, () => ({
+			dt: () => table.current
+		}));
 
-	// Expose some of the more common settings as props
-	if (props.data) {
-		options.current.data = props.data;
-	}
-
-	if (props.ajax) {
-		options.current.ajax = props.ajax;
-	}
-
-	if (props.columns) {
-		options.current.columns = props.columns;
-	}
-
-	// If slots are defined, create `columnDefs` entries for them to apply
-	// to their target columns.
-	if (props.slots) {
-		applySlots(cache.current, options.current, props.slots);
-	}
-
-	// Create the DataTable when the `<table>` is ready in the document
-	useEffect(() => {
-		if (!DataTablesLib) {
-			throw new Error(
-				'DataTables library not set. See https://datatables.net/tn/23 for details.'
-			);
-		}
-
-		if (tableEl.current && ! table.current) {
-			// We allow `on*` properties to be used for event listeners, which
-			// need to be bound to the `on` property in the DataTable
-			// initialisation object, allowing the event handlers to trigger
-			// even during table initialisation / setup.
-			dtEvents.forEach((name) => {
-				// Create the `on*` name from the DataTables event name, which
-				// is camelCase and an `on` prefix.
-				const onName =
-					'on' +
-					name[0]!.toUpperCase() +
-					name.slice(1).replace(/-[a-z]/g, (match) => match[1]!.toUpperCase());
-
-				if ((props as any)[onName]) {
-					// As any, due to an error in the DT2 types which doesn't
-					// include `on`
-
-					if (! (options.current as any).on) {
-						(options.current as any).on = {};
-					}
-
-					(options.current as any).on[name] = (props as any)[onName];
-				}
-			});
-
-			// Initialise the DataTable
-			table.current = new DataTablesLib(tableEl.current, options.current);
-		}
-
-		// Unmount tidy up
-		return () => {
-			if (table.current) {
-				// Unmount the created roots when this component unmounts
-				let roots = cache.current.slice();
-				cache.current.length = 0;
-
-				setTimeout(() => {
-					roots.forEach((r) => {
-						r.unmount();
-					});
-				}, 250);
-
-				table.current.destroy();
-				table.current = null;
-			}
-		};
-	}, []);
-
-	// On data change, clear and redraw
-	useEffect(() => {
+		// Expose some of the more common settings as props
 		if (props.data) {
-			if (table.current) {
-				table.current.clear();
-				table.current.rows.add(props.data).draw(false);
-			}
+			options.current.data = props.data;
 		}
-	}, [props.data]);
 
-	return (
-		<div>
-			<table ref={tableEl} className={props.className ?? ''} id={props.id ?? ''}>
-				{props.children ?? null}
-			</table>
-		</div>
-	);
-});
+		if (props.ajax) {
+			options.current.ajax = props.ajax;
+		}
+
+		if (props.columns) {
+			options.current.columns = props.columns;
+		}
+
+		// If slots are defined, create `columnDefs` entries for them to apply
+		// to their target columns.
+		if (props.slots) {
+			applySlots(cache.current, options.current, props.slots);
+		}
+
+		// Create the DataTable when the `<table>` is ready in the document
+		useEffect(() => {
+			if (!DataTablesLib) {
+				throw new Error(
+					'DataTables library not set. See https://datatables.net/tn/23 for details.'
+				);
+			}
+
+			if (tableEl.current && !table.current) {
+				// We allow `on*` properties to be used for event listeners,
+				// which need to be bound to the `on` property in the DataTable
+				// initialisation object, allowing the event handlers to trigger
+				// even during table initialisation / setup.
+				dtEvents.forEach(name => {
+					// Create the `on*` name from the DataTables event name,
+					// which is camelCase and an `on` prefix.
+					const onName =
+						'on' +
+						name[0]!.toUpperCase() +
+						name
+							.slice(1)
+							.replace(/-[a-z]/g, match =>
+								match[1]!.toUpperCase()
+							);
+
+					if ((props as any)[onName]) {
+						// As any, due to an error in the DT2 types which
+						// doesn't include `on`
+						if (!(options.current as any).on) {
+							(options.current as any).on = {};
+						}
+
+						(options.current as any).on[name] = (props as any)[
+							onName
+						];
+					}
+				});
+
+				// Initialise the DataTable
+				table.current = new DataTablesLib(
+					tableEl.current,
+					options.current
+				);
+			}
+
+			// Unmount tidy up
+			return () => {
+				if (table.current) {
+					// Unmount the created roots when this component unmounts
+					let roots = cache.current.slice();
+					cache.current.length = 0;
+
+					setTimeout(() => {
+						roots.forEach(r => {
+							r.unmount();
+						});
+					}, 250);
+
+					table.current.destroy();
+					table.current = null;
+				}
+			};
+		}, []);
+
+		// On data change, clear and redraw
+		useEffect(() => {
+			if (props.data) {
+				if (table.current) {
+					table.current.clear();
+					table.current.rows.add(props.data).draw(false);
+				}
+			}
+		}, [props.data]);
+
+		return (
+			<div>
+				<table
+					ref={tableEl}
+					className={props.className ?? ''}
+					id={props.id ?? ''}
+				>
+					{props.children ?? null}
+				</table>
+			</div>
+		);
+	}
+);
 
 Component.use = function (lib: DTType<any>) {
 	DataTablesLib = lib;
@@ -223,12 +241,16 @@ export default Exporter;
  * @param options DataTables configuration object
  * @param slots Props passed in
  */
-function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) {
+function applySlots(
+	cache: SlotCache,
+	options: DTConfig,
+	slots: DataTableSlots
+) {
 	if (!options.columnDefs) {
 		options.columnDefs = [];
 	}
 
-	Object.keys(slots).forEach((name) => {
+	Object.keys(slots).forEach(name => {
 		let slot = slots[name];
 
 		if (!slot) {
@@ -256,29 +278,30 @@ function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) 
 }
 
 /**
- * Create a rendering function that will create a React component
- * for a cell's rendering function.
+ * Create a rendering function that will create a React component for a cell's
+ * rendering function.
  *
  * @param slot Function to create react component or orthogonal data
  * @returns Rendering function
  */
 function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
 	return function (data: any, type: string, row: any, meta: object) {
-	        if (slot.length === 4) {
+		if (slot.length === 4) {
 			let result = slot(data, type, row, meta);
-			
+
 			return result['$$typeof'] ? renderJsx(cache, result) : result;
-		} else if (slot.length === 3) {
-			// The function takes three parameters so it allows for
-			// orthogonal data - not possible to cache the response
+		}
+		else if (slot.length === 3) {
+			// The function takes three parameters so it allows for orthogonal
+			// data - not possible to cache the response
 			let result = slot(data, type, row, meta);
 
 			return result['$$typeof'] ? renderJsx(cache, result) : result;
 		}
 
-		// Otherwise, we are expecting a JSX return from the function every
-		// time and we can cache it. Note the `slot as any` - Typescript
-		// doesn't appear to like the two argument option for `DataTableSlot`.
+		// Otherwise, we are expecting a JSX return from the function every time
+		// and we can cache it. Note the `slot as any` - Typescript doesn't
+		// appear to like the two argument option for `DataTableSlot`.
 		return slotCache(cache, () => (slot as any)(data, row));
 	};
 }
