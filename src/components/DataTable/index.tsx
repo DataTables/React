@@ -1,17 +1,17 @@
-import {createRoot, Root} from 'react-dom/client';
 import {
 	forwardRef,
+	ForwardRefExoticComponent,
+	ReactNode,
 	useEffect,
 	useImperativeHandle,
-	useRef,
-	ReactNode,
-	ForwardRefExoticComponent
+	useRef
 } from 'react';
+import { createRoot, Root } from 'react-dom/client';
 
 import dtEvents from './events';
 
 import type DTType from 'datatables.net';
-import type {Api as DTApiType, Config as DTConfig} from 'datatables.net';
+import type { Api as DTApiType, Config as DTConfig } from 'datatables.net';
 
 let DataTablesLib: DTType<any> | null = null;
 
@@ -141,21 +141,28 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 			);
 		}
 
-		if (tableEl.current) {
-			const $ = DataTablesLib.use('jq') as unknown as JQueryStatic;
-			const table$ = $(tableEl.current);
-
-			// Bind to DataTable's events so they can be listened to with an `on` property
+		if (tableEl.current && ! table.current) {
+			// We allow `on*` properties to be used for event listeners, which
+			// need to be bound to the `on` property in the DataTable
+			// initialisation object, allowing the event handlers to trigger
+			// even during table initialisation / setup.
 			dtEvents.forEach((name) => {
-				// Create the `on*` name from the DataTables event name, which is camelCase
-				// and an `on` prefix.
+				// Create the `on*` name from the DataTables event name, which
+				// is camelCase and an `on` prefix.
 				const onName =
 					'on' +
 					name[0]!.toUpperCase() +
 					name.slice(1).replace(/-[a-z]/g, (match) => match[1]!.toUpperCase());
 
 				if ((props as any)[onName]) {
-					table$.on(name + '.dt', (props as any)[onName]);
+					// As any, due to an error in the DT2 types which doesn't
+					// include `on`
+
+					if (! (options.current as any).on) {
+						(options.current as any).on = {};
+					}
+
+					(options.current as any).on[name] = (props as any)[onName];
 				}
 			});
 
