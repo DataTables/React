@@ -12,9 +12,9 @@ import { createPortal } from 'react-dom';
 import dtEvents from './events';
 
 import type DTType from 'datatables.net';
-import type { Api as DTApiType, Config as DTConfig } from 'datatables.net';
+import type { Api as DTApiType, Options as DTConfig } from 'datatables.net';
 
-let DataTablesLib: DTType<any> | null = null;
+let DataTablesLib: DTType | null = null;
 
 type SlotCache = Map<HTMLDivElement, React.ReactPortal>;
 
@@ -101,7 +101,7 @@ export interface DataTableComponent
 	 * @param dtLib DataTables core library
 	 * @returns
 	 */
-	use: (dtLib: DTType<any>) => void;
+	use: (dtLib: DTType) => void;
 }
 
 // `any` here, so we can assign the `use` later - it is really a
@@ -172,7 +172,7 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 			// Add the portals to the component's output
 			(options.current as any).on['draw'] = () => {
 				if (table.current) {
-					let divs = Array.from(
+					const divs = Array.from(
 						(
 							table.current.table().body() as HTMLElement
 						).querySelectorAll<HTMLDivElement>('div.dt-react-portal')
@@ -202,7 +202,7 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 	useEffect(() => {
 		if (
 			table.current &&
-			table.current.page.info().serverSide === false &&
+			!table.current.page.info().serverSide &&
 			(table.current.init().scrollY || table.current.init().scrollX) &&
 			props.slots
 		) {
@@ -230,7 +230,7 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTab
 	);
 });
 
-Component.use = function (lib: DTType<any>) {
+Component.use = function (lib: DTType) {
 	DataTablesLib = lib;
 };
 
@@ -242,6 +242,7 @@ export default Exporter;
  * Loop over the slots defined and apply them to their columns,
  * targeting based on the slot name (object key).
  *
+ * @param cache Portal cache
  * @param options DataTables configuration object
  * @param slots Props passed in
  */
@@ -251,7 +252,7 @@ function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) 
 	}
 
 	Object.keys(slots).forEach((name) => {
-		let slot = slots[name];
+		const slot = slots[name];
 
 		if (!slot) {
 			return;
@@ -281,20 +282,21 @@ function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) 
  * Create a rendering function that will create a React component for a cell's
  * rendering function.
  *
+ * @param cache Portal cache
  * @param slot Function to create react component or orthogonal data
  * @returns Rendering function
  */
 function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
 	return function (data: any, type: string, row: any, meta: object) {
 		if (slot.length === 4) {
-			let result = slot(data, type, row, meta);
+			const result = slot(data, type, row, meta);
 
 			return result['$$typeof'] ? renderJsx(cache, result, meta) : result;
 		}
 		else if (slot.length === 3) {
 			// The function takes three parameters so it allows for orthogonal
 			// data - not possible to cache the response
-			let result = slot(data, type, row, meta);
+			const result = slot(data, type, row, meta);
 
 			return result['$$typeof'] ? renderJsx(cache, result, meta) : result;
 		}
@@ -311,13 +313,11 @@ function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
  */
 function slotCache(cache: SlotCache, create: Function, meta: any) {
 	// Execute the rendering function
-	let result = create();
+	const result = create();
 
 	// If the result is a JSX element, we need to render and then cache it
 	if (result['$$typeof']) {
-		let div = renderJsx(cache, result, meta);
-
-		return div;
+		return renderJsx(cache, result, meta);
 	}
 
 	// Any other data just gets returned
