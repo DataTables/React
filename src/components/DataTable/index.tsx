@@ -92,7 +92,9 @@ export interface DataTableRef {
  * component.
  */
 export interface DataTableComponent
-	extends ForwardRefExoticComponent<DataTableProps & React.RefAttributes<DataTableRef>> {
+	extends ForwardRefExoticComponent<
+		DataTableProps & React.RefAttributes<DataTableRef>
+	> {
 	/**
 	 * Set the DataTables library to use for this component (e.g. the result
 	 * from `import DT from 'datatables.net-dt'` or `import DT from
@@ -106,129 +108,147 @@ export interface DataTableComponent
 
 // `any` here, so we can assign the `use` later - it is really a
 // DataTableComponent though
-const Component: any = forwardRef<DataTableRef, DataTableProps>(function DataTable(props, ref) {
-	const tableEl = useRef<HTMLTableElement | null>(null);
-	const table = useRef<DTApiType<any> | null>(null);
-	const options = useRef(props.options ?? {});
-	const [portals, setPortals] = useState<React.ReactPortal[]>([]);
-	const portalCache = useRef<SlotCache>(new Map());
+const Component: any = forwardRef<DataTableRef, DataTableProps>(
+	function DataTable(props, ref) {
+		const tableEl = useRef<HTMLTableElement | null>(null);
+		const table = useRef<DTApiType<any> | null>(null);
+		const options = useRef(props.options ?? {});
+		const [portals, setPortals] = useState<React.ReactPortal[]>([]);
+		const portalCache = useRef<SlotCache>(new Map());
 
-	// Expose the DataTables API via a reference
-	useImperativeHandle(ref, () => ({
-		dt: () => table.current
-	}));
+		// Expose the DataTables API via a reference
+		useImperativeHandle(ref, () => ({
+			dt: () => table.current
+		}));
 
-	// Expose some of the more common settings as props
-	if (props.data) {
-		options.current.data = props.data;
-	}
-
-	if (props.ajax) {
-		options.current.ajax = props.ajax;
-	}
-
-	if (props.columns) {
-		options.current.columns = props.columns;
-	}
-
-	// If slots are defined, create `columnDefs` entries for them to apply
-	// to their target columns.
-	if (props.slots) {
-		applySlots(portalCache.current, options.current, props.slots);
-	}
-
-	// Create the DataTable when the `<table>` is ready in the document
-	useEffect(() => {
-		if (!DataTablesLib) {
-			throw new Error(
-				'DataTables library not set. See https://datatables.net/tn/23 for details.'
-			);
+		// Expose some of the more common settings as props
+		if (props.data) {
+			options.current.data = props.data;
 		}
 
-		if (tableEl.current && !table.current) {
-			// As any, due to an error in the DT2 types which
-			// doesn't include `on`
-			if (!(options.current as any).on) {
-				(options.current as any).on = {};
+		if (props.ajax) {
+			options.current.ajax = props.ajax;
+		}
+
+		if (props.columns) {
+			options.current.columns = props.columns;
+		}
+
+		// If slots are defined, create `columnDefs` entries for them to apply
+		// to their target columns.
+		if (props.slots) {
+			applySlots(portalCache.current, options.current, props.slots);
+		}
+
+		// Create the DataTable when the `<table>` is ready in the document
+		useEffect(() => {
+			if (!DataTablesLib) {
+				throw new Error(
+					'DataTables library not set. See https://datatables.net/tn/23 for details.'
+				);
 			}
 
-			// We allow `on*` properties to be used for event listeners,
-			// which need to be bound to the `on` property in the DataTable
-			// initialisation object, allowing the event handlers to trigger
-			// even during table initialisation / setup.
-			dtEvents.forEach((name) => {
-				// Create the `on*` name from the DataTables event name,
-				// which is camelCase and an `on` prefix.
-				const onName =
-					'on' +
-					name[0]!.toUpperCase() +
-					name.slice(1).replace(/-[a-z]/g, (match) => match[1]!.toUpperCase());
-
-				if ((props as any)[onName]) {
-					(options.current as any).on[name] = (props as any)[onName];
+			if (tableEl.current && !table.current) {
+				// As any, due to an error in the DT2 types which
+				// doesn't include `on`
+				if (!(options.current as any).on) {
+					(options.current as any).on = {};
 				}
-			});
 
-			// Add the portals to the component's output
-			(options.current as any).on['draw'] = () => {
+				// We allow `on*` properties to be used for event listeners,
+				// which need to be bound to the `on` property in the DataTable
+				// initialisation object, allowing the event handlers to trigger
+				// even during table initialisation / setup.
+				dtEvents.forEach(name => {
+					// Create the `on*` name from the DataTables event name,
+					// which is camelCase and an `on` prefix.
+					const onName =
+						'on' +
+						name[0]!.toUpperCase() +
+						name
+							.slice(1)
+							.replace(/-[a-z]/g, match =>
+								match[1]!.toUpperCase()
+							);
+
+					if ((props as any)[onName]) {
+						(options.current as any).on[name] = (props as any)[
+							onName
+						];
+					}
+				});
+
+				// Add the portals to the component's output
+				(options.current as any).on['draw'] = () => {
+					if (table.current) {
+						const divs = Array.from(
+							(
+								table.current.table().body() as HTMLElement
+							).querySelectorAll<HTMLDivElement>(
+								'div.dt-react-portal'
+							)
+						);
+						let portals = divs
+							.map(div => portalCache.current.get(div))
+							.filter(d => !!d);
+
+						setPortals(portals);
+					}
+				};
+
+				// Initialise the DataTable
+				table.current = new DataTablesLib(
+					tableEl.current,
+					options.current
+				);
+			}
+
+			return () => {
 				if (table.current) {
-					const divs = Array.from(
-						(
-							table.current.table().body() as HTMLElement
-						).querySelectorAll<HTMLDivElement>('div.dt-react-portal')
-					);
-					let portals = divs
-						.map((div) => portalCache.current.get(div))
-						.filter((d) => !!d);
-
-					setPortals(portals);
+					table.current.destroy();
+					table.current = null;
 				}
 			};
+		}, []);
 
-			// Initialise the DataTable
-			table.current = new DataTablesLib(tableEl.current, options.current);
-		}
-
-		return () => {
-			if (table.current) {
-				table.current.destroy();
-				table.current = null;
+		// For cases where scrolling is used, and slots, the slots async draw can
+		// force the columns to be misaligned, so we do an adjustment for that case.
+		useEffect(() => {
+			if (
+				table.current &&
+				!table.current.page.info().serverSide &&
+				(table.current.init().scrollY ||
+					table.current.init().scrollX) &&
+				props.slots
+			) {
+				table.current!.ready(() => table.current!.columns.adjust());
 			}
-		};
-	}, []);
+		});
 
-	// For cases where scrolling is used, and slots, the slots async draw can
-	// force the columns to be misaligned, so we do an adjustment for that case.
-	useEffect(() => {
-		if (
-			table.current &&
-			!table.current.page.info().serverSide &&
-			(table.current.init().scrollY || table.current.init().scrollX) &&
-			props.slots
-		) {
-			table.current!.ready(() => table.current!.columns.adjust());
-		}
-	});
-
-	// On data change, clear and redraw
-	useEffect(() => {
-		if (props.data) {
-			if (table.current) {
-				table.current.clear();
-				table.current.rows.add(props.data).draw(false);
+		// On data change, clear and redraw
+		useEffect(() => {
+			if (props.data) {
+				if (table.current) {
+					table.current.clear();
+					table.current.rows.add(props.data).draw(false);
+				}
 			}
-		}
-	}, [props.data]);
+		}, [props.data]);
 
-	return (
-		<div>
-			<table ref={tableEl} className={props.className ?? ''} id={props.id ?? ''}>
-				{props.children ?? null}
-			</table>
-			{portals}
-		</div>
-	);
-});
+		return (
+			<div>
+				<table
+					ref={tableEl}
+					className={props.className ?? ''}
+					id={props.id ?? ''}
+				>
+					{props.children ?? null}
+				</table>
+				{portals}
+			</div>
+		);
+	}
+);
 
 Component.use = function (lib: DTType) {
 	DataTablesLib = lib;
@@ -246,12 +266,16 @@ export default Exporter;
  * @param options DataTables configuration object
  * @param slots Props passed in
  */
-function applySlots(cache: SlotCache, options: DTConfig, slots: DataTableSlots) {
+function applySlots(
+	cache: SlotCache,
+	options: DTConfig,
+	slots: DataTableSlots
+) {
 	if (!options.columnDefs) {
 		options.columnDefs = [];
 	}
 
-	Object.keys(slots).forEach((name) => {
+	Object.keys(slots).forEach(name => {
 		const slot = slots[name];
 
 		if (!slot) {
@@ -332,13 +356,15 @@ function slotCache(cache: SlotCache, create: Function, meta: any) {
  * @param meta Cell's meta data
  * @returns A host div element for the "slot"
  */
-function renderJsx(cache: SlotCache, jsx: React.JSX.Element, meta: any): HTMLDivElement {
+function renderJsx(
+	cache: SlotCache,
+	jsx: React.JSX.Element,
+	meta: any
+): HTMLDivElement {
 	const div = document.createElement('div');
 	const key = meta
 		? `${meta.row}-${meta.col}`
-		: Math.random()
-				.toString(36)
-				.substring(2);
+		: Math.random().toString(36).substring(2);
 
 	div.classList.add('dt-react-portal');
 
