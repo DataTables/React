@@ -1,6 +1,4 @@
-import {
-	forwardRef,
-	ForwardRefExoticComponent,
+import React, {
 	ReactNode,
 	useEffect,
 	useImperativeHandle,
@@ -9,10 +7,15 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 
+import Column, { ColumnProps } from '../Column';
 import dtEvents from './events';
 
 import type DTType from 'datatables.net';
-import type { Api as DTApiType, Options as DTConfig } from 'datatables.net';
+import type {
+	ColumnOptions,
+	Api as DTApiType,
+	Options as DTConfig
+} from 'datatables.net';
 
 let DataTablesLib: DTType | null = null;
 
@@ -92,7 +95,7 @@ export interface DataTableRef {
  * component.
  */
 export interface DataTableComponent
-	extends ForwardRefExoticComponent<
+	extends React.ForwardRefExoticComponent<
 		DataTableProps & React.RefAttributes<DataTableRef>
 	> {
 	/**
@@ -108,7 +111,7 @@ export interface DataTableComponent
 
 // `any` here, so we can assign the `use` later - it is really a
 // DataTableComponent though
-const Component: any = forwardRef<DataTableRef, DataTableProps>(
+const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 	function DataTable(props, ref) {
 		const tableEl = useRef<HTMLTableElement | null>(null);
 		const table = useRef<DTApiType<any> | null>(null);
@@ -130,9 +133,21 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(
 			options.current.ajax = props.ajax;
 		}
 
+		// Columns - can be from the prop, or in the options. Or neither, and
+		// could be defined by the `<Column>` children
 		if (props.columns) {
 			options.current.columns = props.columns;
 		}
+
+		if (!options.current.columns) {
+			options.current.columns = [];
+		}
+
+		columnComponents(
+			portalCache.current,
+			options.current.columns,
+			props.children
+		);
 
 		// If slots are defined, create `columnDefs` entries for them to apply
 		// to their target columns.
@@ -242,7 +257,7 @@ const Component: any = forwardRef<DataTableRef, DataTableProps>(
 					className={props.className ?? ''}
 					id={props.id ?? ''}
 				>
-					{props.children ?? null}
+					{nonComponentChildren(props.children) ?? null}
 				</table>
 				{portals}
 			</div>
@@ -298,6 +313,72 @@ function applySlots(
 				target: name + ':name',
 				render: slotRenderer(cache, slot)
 			});
+		}
+	});
+}
+
+/**
+ * Get children which are not Column components
+ *
+ * @param children
+ * @returns Array of child nows
+ */
+function nonComponentChildren(children: ReactNode) {
+	return React.Children.map(children, child => {
+		if (!React.isValidElement(child)) {
+			return;
+		}
+
+		return child.type !== Column ? child : null;
+	})?.filter(c => !!c);
+}
+
+/**
+ * Merge `<Column>` components into the DataTables configuration
+ *
+ * @param columns The columns array to be modified
+ * @param children `<DataTable>` children
+ */
+function columnComponents(
+	cache: SlotCache,
+	columns: Array<ColumnOptions | null>,
+	children: ReactNode
+) {
+	React.Children.forEach(children, (columnComp, i) => {
+		if (!React.isValidElement(columnComp) || columnComp.type !== Column) {
+			return;
+		}
+
+		if (!columns[i]) {
+			columns[i] = {};
+		}
+
+		const columnOptions = columns[i];
+		const columnProps = columnComp.props as ColumnProps;
+
+		if (columnProps.title !== undefined) {
+			columnOptions.title = columnProps.title;
+		}
+
+		if (columnProps.data !== undefined) {
+			columnOptions.data = columnProps.data;
+		}
+
+		if (columnProps.options) {
+			Object.assign(columnOptions, columnProps.options);
+		}
+
+		if (columnProps.children) {
+			let renderer = columnProps.children as any;
+
+			if (columnProps.data) {
+				columnOptions.render = {
+					display: slotRenderer(cache, renderer)
+				};
+			}
+			else {
+				columnOptions.render = slotRenderer(cache, renderer);
+			}
 		}
 	});
 }
