@@ -1,16 +1,11 @@
 {
 	"compilerOptions": {
 		/* Language and Environment */
-		"target": "esnext",
 		"jsx": "react-jsx",
 
 		/* Modules */
-		"module": "node16",
-		"moduleResolution": "node16",
-
-		/* JavaScript Support */
-		"allowJs": false,
-		"maxNodeModuleJsDepth": 1,
+		"module": "ES2015",
+		"moduleResolution": "bundler",
 
 		/* Emit */
 		"declaration": true,
