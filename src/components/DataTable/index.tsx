@@ -372,6 +372,11 @@ function columnComponents(
 			let renderer = columnProps.children as any;
 
 			if (columnProps.data) {
+				// TODO - wonder if this should use the same length trick as
+				// below. If length is 1, then it should be for display only?
+				// Otherwise if it is multiple, then the function will be used?
+				// Or perhaps that logic should be moved into the `slotRenderer`
+				// and `slots` can gain the same benefit?
 				columnOptions.render = {
 					display: slotRenderer(cache, renderer)
 				};
@@ -396,14 +401,18 @@ function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
 		if (slot.length === 4) {
 			const result = slot(data, type, row, meta);
 
-			return result['$$typeof'] ? renderJsx(cache, result, meta) : result;
+			return React.isValidElement(result)
+				? renderJsx(cache, result, meta)
+				: result;
 		}
 		else if (slot.length === 3) {
 			// The function takes three parameters so it allows for orthogonal
 			// data - not possible to cache the response
 			const result = slot(data, type, row, meta);
 
-			return result['$$typeof'] ? renderJsx(cache, result, meta) : result;
+			return React.isValidElement(result)
+				? renderJsx(cache, result, meta)
+				: result;
 		}
 
 		// Otherwise, we are expecting a JSX return from the function every time
@@ -421,7 +430,7 @@ function slotCache(cache: SlotCache, create: Function, meta: any) {
 	const result = create();
 
 	// If the result is a JSX element, we need to render and then cache it
-	if (result['$$typeof']) {
+	if (React.isValidElement(result)) {
 		return renderJsx(cache, result, meta);
 	}
 
