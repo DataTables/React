@@ -363,6 +363,10 @@ function columnComponents(
 		if (columnProps.data !== undefined) {
 			columnOptions.data = columnProps.data;
 		}
+		else if (columnOptions.data === undefined) {
+			// Get the whole row as the data point in the renderer
+			columnOptions.data = null;
+		}
 
 		if (columnProps.options) {
 			Object.assign(columnOptions, columnProps.options);
@@ -371,19 +375,7 @@ function columnComponents(
 		if (columnProps.children) {
 			let renderer = columnProps.children as any;
 
-			if (columnProps.data) {
-				// TODO - wonder if this should use the same length trick as
-				// below. If length is 1, then it should be for display only?
-				// Otherwise if it is multiple, then the function will be used?
-				// Or perhaps that logic should be moved into the `slotRenderer`
-				// and `slots` can gain the same benefit?
-				columnOptions.render = {
-					display: slotRenderer(cache, renderer)
-				};
-			}
-			else {
-				columnOptions.render = slotRenderer(cache, renderer);
-			}
+			columnOptions.render = slotRenderer(cache, renderer);
 		}
 	});
 }
