@@ -3,6 +3,7 @@ import React, {
 	useEffect,
 	useImperativeHandle,
 	useLayoutEffect,
+	useMemo,
 	useRef,
 	useState
 } from 'react';
@@ -112,52 +113,65 @@ export interface DataTableComponent
 
 // `any` here, so we can assign the `use` later - it is really a
 // DataTableComponent though
+
 const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 	function DataTable(props, ref) {
 		const tableEl = useRef<HTMLTableElement | null>(null);
 		const table = useRef<DTApiType<any> | null>(null);
 		const initialAdjust = useRef<boolean>(false);
+		const isFirstRender = useRef<boolean>(true);
 		const options = useRef(props.options ?? {});
 		const [portals, setPortals] = useState<React.ReactPortal[]>([]);
 		const portalCache = useRef<SlotCache>(new Map());
 
-		// Expose the DataTables API via a reference
 		useImperativeHandle(ref, () => ({
 			dt: () => table.current
 		}));
 
-		// Expose some of the more common settings as props
-		if (props.data) {
-			options.current.data = props.data;
-		}
+		// Use a memo to store some of the most common options
+		useMemo(() => {
+			// Expose some of the more common settings as props 
+			options.current = { ...(props.options ?? {}) };
 
-		if (props.ajax) {
-			options.current.ajax = props.ajax;
-		}
+			if (props.data) {
+				options.current.data = props.data;
+			}
+			
+			if (props.ajax) {
+				options.current.ajax = props.ajax;
+			}
+			
+			 // Columns - can be from the prop, or in the options. Or neither, and
+			// could be defined by the `<Column>` children 
+			if (props.columns) {
+				options.current.columns = props.columns;
+			}
 
-		// Columns - can be from the prop, or in the options. Or neither, and
-		// could be defined by the `<Column>` children
-		if (props.columns) {
-			options.current.columns = props.columns;
-		}
+			if (!options.current.columns) {
+				options.current.columns = [];
+			}
 
-		if (!options.current.columns) {
-			options.current.columns = [];
-		}
+			columnComponents(
+				portalCache.current,
+				options.current.columns,
+				props.children
+			);
 
-		columnComponents(
-			portalCache.current,
-			options.current.columns,
-			props.children
-		);
+			 // If slots are defined, create `columnDefs` entries for them to apply
+			// to their target columns. 
+			if (props.slots) {
+				applySlots(portalCache.current, options.current, props.slots);
+			}
+		}, [
+			props.options,
+			props.data,
+			props.ajax,
+			props.columns,
+			props.children,
+			props.slots
+		]);
 
-		// If slots are defined, create `columnDefs` entries for them to apply
-		// to their target columns.
-		if (props.slots) {
-			applySlots(portalCache.current, options.current, props.slots);
-		}
-
-		// Create the DataTable when the `<table>` is ready in the document
+		// Initialize DataTables
 		useEffect(() => {
 			if (!DataTablesLib) {
 				throw new Error(
@@ -166,10 +180,8 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 			}
 
 			if (tableEl.current && !table.current) {
-				// As any, due to an error in the DT2 types which
-				// doesn't include `on`
-				if (!(options.current as any).on) {
-					(options.current as any).on = {};
+				if (!options.current.on) {
+					options.current.on = {};
 				}
 
 				// We allow `on*` properties to be used for event listeners,
@@ -178,7 +190,7 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 				// even during table initialisation / setup.
 				dtEvents.forEach(name => {
 					// Create the `on*` name from the DataTables event name,
-					// which is camelCase and an `on` prefix.
+					// which is camelCase and an `on` prefix. 
 					const onName =
 						'on' +
 						name[0]!.toUpperCase() +
@@ -195,7 +207,7 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 					}
 				});
 
-				// Add the portals to the component's output
+				// Stable draw listener: only updates state if portal contents change
 				(options.current as any).on['draw'] = () => {
 					if (table.current) {
 						const divs = Array.from(
@@ -205,15 +217,26 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 								'div.dt-react-portal'
 							)
 						);
-						let portals = divs
-							.map(div => portalCache.current.get(div))
-							.filter(d => !!d);
 
-						setPortals(portals);
+						const nextPortals = divs
+							.map(div => portalCache.current.get(div))
+							.filter((d): d is React.ReactPortal => !!d);
+
+						setPortals(prevPortals => {
+							// Check equality to prevent unnecessary React re-renders
+							if (
+								prevPortals.length === nextPortals.length &&
+								prevPortals.every(
+									(p, i) => p.key === nextPortals[i]?.key
+								)
+							) {
+								return prevPortals; // Keeps reference -> NO re-render!
+							}
+							return nextPortals;
+						});
 					}
 				};
 
-				// Initialise the DataTable
 				table.current = new DataTablesLib(
 					tableEl.current,
 					options.current
@@ -228,24 +251,25 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 			};
 		}, []);
 
-		// If slots are used, we need to adjust the column widths to account
-		// for the different data
+		// Adjust column widths after the first batch of portals mounts
 		useLayoutEffect(() => {
-			if (table.current && !initialAdjust.current) {
-				console.log('doing layoutEffect');
+			if (table.current && !initialAdjust.current && portals.length > 0) {
 				initialAdjust.current = true;
 				table.current.ready(() => table.current!.columns.adjust());
 			}
-		});
+		}, [portals]);
 
-		// On data change, clear and redraw
+		// On external data change, update table (skipping initial mount)
 		useEffect(() => {
-			if (props.data) {
-				if (table.current) {
-					initialAdjust.current = false;
-					table.current.clear();
-					table.current.rows.add(props.data).draw(false);
-				}
+			if (isFirstRender.current) {
+				isFirstRender.current = false;
+				return;
+			}
+
+			if (props.data && table.current) {
+				initialAdjust.current = false;
+				table.current.clear();
+				table.current.rows.add(props.data).draw(false);
 			}
 		}, [props.data]);
 
