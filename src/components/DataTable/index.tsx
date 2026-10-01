@@ -140,8 +140,9 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 				options.current.ajax = props.ajax;
 			}
 
-			// Columns - can be from the prop, or in the options. Or neither, and
-			// could be defined by the `<Column>` children - without mutating
+			// Columns - can be from the prop, or in the options. Or neither,
+			// and could be defined by the `<Column>` children - without
+			// mutating
 			if (props.columns) {
 				options.current.columns = props.columns.map(col => ({
 					...col
@@ -158,8 +159,8 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 				props.children
 			);
 
-			// If slots are defined, create `columnDefs` entries for them to apply
-			// to their target columns.
+			// If slots are defined, create `columnDefs` entries for them to
+			// apply to their target columns.
 			if (props.slots) {
 				applySlots(portalCache.current, options.current, props.slots);
 			}
@@ -381,7 +382,7 @@ function columnComponents(
 ) {
 	let colIdx = 0;
 
-	React.Children.forEach(children, (columnComp, i) => {
+	React.Children.forEach(children, columnComp => {
 		if (!React.isValidElement(columnComp) || columnComp.type !== Column) {
 			return;
 		}
