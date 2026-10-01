@@ -130,21 +130,23 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 
 		// Use a memo to store some of the most common options
 		useMemo(() => {
-			// Expose some of the more common settings as props 
+			// Expose some of the more common settings as props
 			options.current = { ...(props.options ?? {}) };
 
 			if (props.data) {
 				options.current.data = props.data;
 			}
-			
+
 			if (props.ajax) {
 				options.current.ajax = props.ajax;
 			}
-			
-			 // Columns - can be from the prop, or in the options. Or neither, and
-			// could be defined by the `<Column>` children 
+
+			// Columns - can be from the prop, or in the options. Or neither, and
+			// could be defined by the `<Column>` children - without mutating
 			if (props.columns) {
-				options.current.columns = props.columns;
+				options.current.columns = props.columns.map(col => ({
+					...col
+				}));
 			}
 
 			if (!options.current.columns) {
@@ -157,8 +159,8 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 				props.children
 			);
 
-			 // If slots are defined, create `columnDefs` entries for them to apply
-			// to their target columns. 
+			// If slots are defined, create `columnDefs` entries for them to apply
+			// to their target columns.
 			if (props.slots) {
 				applySlots(portalCache.current, options.current, props.slots);
 			}
@@ -190,7 +192,7 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 				// even during table initialisation / setup.
 				dtEvents.forEach(name => {
 					// Create the `on*` name from the DataTables event name,
-					// which is camelCase and an `on` prefix. 
+					// which is camelCase and an `on` prefix.
 					const onName =
 						'on' +
 						name[0]!.toUpperCase() +
@@ -207,34 +209,50 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 					}
 				});
 
-				// Stable draw listener: only updates state if portal contents change
+				// Stable draw listener: only updates state if portal contents
+				// change
 				(options.current as any).on['draw'] = () => {
-					if (table.current) {
-						const divs = Array.from(
-							(
-								table.current.table().body() as HTMLElement
-							).querySelectorAll<HTMLDivElement>(
-								'div.dt-react-portal'
-							)
-						);
-
-						const nextPortals = divs
-							.map(div => portalCache.current.get(div))
-							.filter((d): d is React.ReactPortal => !!d);
-
-						setPortals(prevPortals => {
-							// Check equality to prevent unnecessary React re-renders
-							if (
-								prevPortals.length === nextPortals.length &&
-								prevPortals.every(
-									(p, i) => p.key === nextPortals[i]?.key
-								)
-							) {
-								return prevPortals; // Keeps reference -> NO re-render!
-							}
-							return nextPortals;
-						});
+					if (!table.current) {
+						return;
 					}
+
+					const divs = Array.from(
+						(
+							table.current.table().body() as HTMLElement
+						).querySelectorAll<HTMLDivElement>(
+							'div.dt-react-portal'
+						)
+					);
+
+					// Prune stale divs no longer present in the DOM
+					const currentDivSet = new Set(divs);
+
+					for (const cachedDiv of portalCache.current.keys()) {
+						if (!currentDivSet.has(cachedDiv)) {
+							portalCache.current.delete(cachedDiv);
+						}
+					}
+
+					// Map active divs to portals
+					const nextPortals = divs
+						.map(div => portalCache.current.get(div))
+						.filter((d): d is React.ReactPortal => !!d);
+
+					setPortals(prevPortals => {
+						// Check equality to prevent unnecessary React
+						// re-renders
+						if (
+							prevPortals.length === nextPortals.length &&
+							prevPortals.every(
+								(p, i) => p.key === nextPortals[i]?.key
+							)
+						) {
+							// Keeps reference, so no re-render!
+							return prevPortals;
+						}
+
+						return nextPortals;
+					});
 				};
 
 				table.current = new DataTablesLib(
@@ -413,7 +431,7 @@ function columnComponents(
 			// exact single there might be some off-page cells which are wider
 			// than others, but the majority of the time, the components will
 			// be the same size (e.g. buttons).
-			if (! columnOptions.widthCalc) {
+			if (!columnOptions.widthCalc) {
 				columnOptions.widthCalc = 'display';
 			}
 		}
