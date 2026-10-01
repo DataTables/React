@@ -280,6 +280,11 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 			}
 		}, [props.data]);
 
+		const tableChildren = useMemo(
+			() => nonComponentChildren(props.children) ?? null,
+			[props.children]
+		);
+
 		return (
 			<div>
 				<table
@@ -287,7 +292,7 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 					className={props.className ?? ''}
 					id={props.id ?? ''}
 				>
-					{nonComponentChildren(props.children) ?? null}
+					{tableChildren}
 				</table>
 				{portals}
 			</div>
