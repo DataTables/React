@@ -113,7 +113,6 @@ export interface DataTableComponent
 
 // `any` here, so we can assign the `use` later - it is really a
 // DataTableComponent though
-
 const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 	function DataTable(props, ref) {
 		const tableEl = useRef<HTMLTableElement | null>(null);
@@ -224,33 +223,20 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 						)
 					);
 
-					// Prune stale divs no longer present in the DOM
-					const currentDivSet = new Set(divs);
-
-					for (const cachedDiv of portalCache.current.keys()) {
-						if (!currentDivSet.has(cachedDiv)) {
-							portalCache.current.delete(cachedDiv);
-						}
-					}
-
 					// Map active divs to portals
 					const nextPortals = divs
 						.map(div => portalCache.current.get(div))
 						.filter((d): d is React.ReactPortal => !!d);
 
 					setPortals(prevPortals => {
-						// Check equality to prevent unnecessary React
-						// re-renders
+						// Check equality to prevent unnecessary React rerenders
 						if (
 							prevPortals.length === nextPortals.length &&
-							prevPortals.every(
-								(p, i) => p.key === nextPortals[i]?.key
-							)
+							prevPortals.every((p, i) => p === nextPortals[i])
 						) {
 							// Keeps reference, so no re-render!
 							return prevPortals;
 						}
-
 						return nextPortals;
 					});
 				};
@@ -266,6 +252,9 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 					table.current.destroy();
 					table.current = null;
 				}
+
+				// Release all portal references on unmount
+				portalCache.current.clear();
 			};
 		}, []);
 
