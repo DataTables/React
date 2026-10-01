@@ -379,16 +379,18 @@ function columnComponents(
 	columns: Array<ColumnOptions | null>,
 	children: ReactNode
 ) {
+	let colIdx = 0;
+
 	React.Children.forEach(children, (columnComp, i) => {
 		if (!React.isValidElement(columnComp) || columnComp.type !== Column) {
 			return;
 		}
 
-		if (!columns[i]) {
-			columns[i] = {};
+		if (!columns[colIdx]) {
+			columns[colIdx] = {};
 		}
 
-		const columnOptions = columns[i];
+		const columnOptions = columns[colIdx] as ColumnOptions;
 		const columnProps = columnComp.props as ColumnProps;
 
 		if (columnProps.title !== undefined) {
@@ -429,6 +431,8 @@ function columnComponents(
 				columnOptions.widthCalc = 'display';
 			}
 		}
+
+		colIdx++;
 	});
 }
 
