@@ -446,27 +446,46 @@ function columnComponents(
  */
 function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
 	return function (data: any, type: string, row: any, meta: object) {
-		if (slot.length === 4) {
-			const result = slot(data, type, row, meta);
+		// A static JSX component
+		if (React.isValidElement(slot)) {
+			const elWithProps = React.cloneElement(slot, {
+                cellData: data,
+                rowData: row,
+                type,
+                meta
+            } as any);
 
-			return React.isValidElement(result)
-				? renderJsx(cache, result, meta)
-				: result;
-		}
-		else if (slot.length === 3) {
-			// The function takes three parameters so it allows for orthogonal
-			// data - not possible to cache the response
-			const result = slot(data, type, row, meta);
-
-			return React.isValidElement(result)
-				? renderJsx(cache, result, meta)
-				: result;
+            return renderJsx(cache, elWithProps, meta);
 		}
 
-		// Otherwise, we are expecting a JSX return from the function every time
-		// and we can cache it. Note the `slot as any` - Typescript doesn't
-		// appear to like the two argument option for `DataTableSlot`.
-		return slotCache(cache, () => (slot as any)(data, row), meta);
+		// Or is it a rendering function
+		if (typeof slot === 'function') {
+			if (slot.length === 4) {
+				const result = slot(data, type, row, meta);
+
+				return React.isValidElement(result)
+					? renderJsx(cache, result, meta)
+					: result;
+			}
+			else if (slot.length === 3) {
+				// The function takes three parameters so it allows for
+				// orthogonal data - not possible to cache the response
+				const result = slot(data, type, row, meta);
+
+				return React.isValidElement(result)
+					? renderJsx(cache, result, meta)
+					: result;
+			}
+
+			// Otherwise, we are expecting a JSX return from the function every
+			// time and we can cache it. Note the `slot as any` - Typescript
+			// doesn't appear to like the two argument option for
+			// `DataTableSlot`.
+			return slotCache(cache, () => (slot as any)(data, row), meta);
+		}
+
+		// Just static content
+		return slot;
 	};
 }
 
