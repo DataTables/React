@@ -2,6 +2,7 @@ import React, {
 	ReactNode,
 	useEffect,
 	useImperativeHandle,
+	useLayoutEffect,
 	useRef,
 	useState
 } from 'react';
@@ -115,6 +116,7 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 	function DataTable(props, ref) {
 		const tableEl = useRef<HTMLTableElement | null>(null);
 		const table = useRef<DTApiType<any> | null>(null);
+		const initialAdjust = useRef<boolean>(false);
 		const options = useRef(props.options ?? {});
 		const [portals, setPortals] = useState<React.ReactPortal[]>([]);
 		const portalCache = useRef<SlotCache>(new Map());
@@ -226,17 +228,13 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 			};
 		}, []);
 
-		// For cases where scrolling is used, and slots, the slots async draw can
-		// force the columns to be misaligned, so we do an adjustment for that case.
-		useEffect(() => {
-			if (
-				table.current &&
-				!table.current.page.info().serverSide &&
-				(table.current.init().scrollY ||
-					table.current.init().scrollX) &&
-				props.slots
-			) {
-				table.current!.ready(() => table.current!.columns.adjust());
+		// If slots are used, we need to adjust the column widths to account
+		// for the different data
+		useLayoutEffect(() => {
+			if (table.current && !initialAdjust.current) {
+				console.log('doing layoutEffect');
+				initialAdjust.current = true;
+				table.current.ready(() => table.current!.columns.adjust());
 			}
 		});
 
@@ -244,6 +242,7 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 		useEffect(() => {
 			if (props.data) {
 				if (table.current) {
+					initialAdjust.current = false;
 					table.current.clear();
 					table.current.rows.add(props.data).draw(false);
 				}
@@ -375,7 +374,24 @@ function columnComponents(
 		if (columnProps.children) {
 			let renderer = columnProps.children as any;
 
-			columnOptions.render = slotRenderer(cache, renderer);
+			if (columnProps.data) {
+				columnOptions.render = {
+					display: slotRenderer(cache, renderer)
+				};
+			}
+			else {
+				columnOptions.render = slotRenderer(cache, renderer);
+			}
+
+			// Limit the auto width calculations to use just the displayed rows
+			// for this column. This prevents the children being rendered for
+			// every row, even before they are needed for display. It is less
+			// exact single there might be some off-page cells which are wider
+			// than others, but the majority of the time, the components will
+			// be the same size (e.g. buttons).
+			if (! columnOptions.widthCalc) {
+				columnOptions.widthCalc = 'display';
+			}
 		}
 	});
 }
