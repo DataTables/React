@@ -15,6 +15,7 @@ import dtEvents from './events';
 import type DTType from 'datatables.net';
 import type {
 	ColumnOptions,
+	Context,
 	Api as DTApiType,
 	Options as DTConfig
 } from 'datatables.net';
@@ -211,14 +212,22 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 
 				// Stable draw listener: only updates state if portal contents
 				// change
-				(options.current as any).on['draw'] = () => {
-					if (!table.current) {
+				options.current.on['draw'] = (e, settings: Context) => {
+					// On the first draw the table instance might not be set if
+					// the initialisation is sync.
+					const api =
+						table.current ||
+						(DataTablesLib
+							? new (DataTablesLib?.Api)(settings)
+							: null);
+
+					if (!api) {
 						return;
 					}
 
 					const divs = Array.from(
 						(
-							table.current.table().body() as HTMLElement
+							api.table().body() as HTMLElement
 						).querySelectorAll<HTMLDivElement>(
 							'div.dt-react-portal'
 						)
@@ -450,13 +459,13 @@ function slotRenderer(cache: SlotCache, slot: DataTableSlot) {
 		// A static JSX component
 		if (React.isValidElement(slot)) {
 			const elWithProps = React.cloneElement(slot, {
-                cellData: data,
-                rowData: row,
-                type,
-                meta
-            } as any);
+				cellData: data,
+				rowData: row,
+				type,
+				meta
+			} as any);
 
-            return renderJsx(cache, elWithProps, meta);
+			return renderJsx(cache, elWithProps, meta);
 		}
 
 		// Or is it a rendering function
