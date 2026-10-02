@@ -1,48 +1,128 @@
-import { render, screen } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import DT from 'datatables.net';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import DataTable, { Column } from '../dist/index';
+import { createRef } from 'react';
+import DataTable, { Column, DataTableRef } from '../dist/index';
 
-describe('DataTable React Component', () => {
+describe('DataTable props', () => {
+	const mockAjax = (dataToSend: any, callback: Function) => {
+        // Simulate an AJAX response from a server
+        callback({
+            data: [
+                { name: 'Airi Satou', position: 'Accountant' },
+                { name: 'Angelica Ramos', position: 'CEO' }
+            ]
+        });
+    };
+
 	beforeEach(() => {
-		// Inject the DataTables library core before running tests
 		DataTable.use(DT);
 	});
 
-	it('renders table headers defined via <Column> components', () => {
+	it('Simple DataTable test', () => {
 		const data = [
 			{ id: 1, name: 'Alice' },
 			{ id: 2, name: 'Bob' }
 		];
 
-		render(
+		const { container } = render(
 			<DataTable data={data}>
-				<Column data="id" title="User ID" />
-				<Column data="name" title="Full Name" />
+				<Column title="ID" data="id" />
+				<Column title="Name" data="name" />
 			</DataTable>
 		);
 
-		// Verify header titles render into the DOM
-		expect(screen.getByText('User ID')).toBeInTheDocument();
-		expect(screen.getByText('Full Name')).toBeInTheDocument();
+		const headerCells = container.querySelectorAll('thead th');
+		expect(headerCells.length).toBe(2);
+		expect(headerCells[0]?.textContent).toBe('ID');
+		expect(headerCells[1]?.textContent).toBe('Name');
+
+		const cells = container.querySelectorAll('tbody tr td');
+		expect(cells.length).toBe(4);
+		expect(cells[0]?.textContent).toBe('1');
+		expect(cells[1]?.textContent).toBe('Alice');
+		expect(cells[2]?.textContent).toBe('2');
+		expect(cells[3]?.textContent).toBe('Bob');
 	});
 
-	it('renders custom JSX inside column render props', async () => {
-		const data = [{ id: 99, name: 'Charlie' }];
+	it('Can set an id on the table', () => {
+		const data = [
+			{ id: 1, name: 'Alice' },
+			{ id: 2, name: 'Bob' }
+		];
 
-		render(
-			<DataTable data={data}>
-				<Column data="name" title="Name" />
-				<Column title="Actions">
-					{(cellData, type, row) => (
-						<button onClick={() => {}}>Edit {row.name}</button>
-					)}
-				</Column>
+		const { container } = render(
+			<DataTable data={data} id="test">
+				<Column title="ID" data="id" />
+				<Column title="Name" data="name" />
 			</DataTable>
 		);
 
-		// DataTables rendering is synced via React portals
-		expect(await screen.findByText('Edit Charlie')).toBeInTheDocument();
+		const table = container.querySelector('table#test');
+		expect(table).toHaveAttribute('id', 'test');
+	});
+
+	it('Can set a className on the table', async () => {
+		const data = [
+			{ id: 1, name: 'Alice' },
+			{ id: 2, name: 'Bob' }
+		];
+
+		const { container } = render(
+			<DataTable data={data} className="testClass">
+				<Column title="ID" data="id" />
+				<Column title="Name" data="name" />
+			</DataTable>
+		);
+
+		await waitFor(() => {
+			const table = container.querySelector(
+				'table.dataTable'
+			);
+			expect(table).toHaveClass('testClass');
+		});
+	});
+
+	it('Can set an Ajax data source', async () => {
+		const { container } = render(
+			<DataTable ajax={mockAjax}>
+				<Column title="Name" data="name" />
+				<Column title="Position" data="position" />
+			</DataTable>
+		);
+
+		await waitFor(() => {
+			const firstCell = container.querySelector('tbody tr:first-child td');
+			expect(firstCell).toHaveTextContent('Airi Satou');
+		});
+	});
+
+	it('Can set options', async () => {
+		const { container } = render(
+			<DataTable ajax={mockAjax} options={{pageLength: 1}}>
+				<Column title="Name" data="name" />
+				<Column title="Position" data="position" />
+			</DataTable>
+		);
+
+		await waitFor(() => {
+			const rows = container.querySelectorAll('tbody tr');
+			expect(rows.length).toBe(1);
+		});
+	});
+
+	it('Can use the API options', async () => {
+		const table = createRef<DataTableRef>();
+		render(
+			<DataTable ajax={mockAjax} ref={table}>
+				<Column title="Name" data="name" />
+				<Column title="Position" data="position" />
+			</DataTable>
+		);
+
+		await waitFor(() => {
+			expect(table.current!.dt()!.page.info().recordsDisplay).toBe(2);
+		});
 	});
 });
