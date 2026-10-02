@@ -7,14 +7,49 @@ import DataTable, { Column, DataTableRef } from '../dist/index';
 
 describe('DataTable props', () => {
 	const mockAjax = (dataToSend: any, callback: Function) => {
-        // Simulate an AJAX response from a server
-        callback({
-            data: [
-                { name: 'Airi Satou', position: 'Accountant' },
-                { name: 'Angelica Ramos', position: 'CEO' }
-            ]
-        });
-    };
+		// Simulate an AJAX response from a server
+		callback({
+			data: [
+				{ name: 'Airi Satou', position: 'Accountant' },
+				{ name: 'Angelica Ramos', position: 'CEO' }
+			]
+		});
+	};
+
+	const mockData = [
+		[
+			'Tiger Nixon',
+			'System Architect',
+			'Edinburgh',
+			'5421',
+			'2011-04-25',
+			'$320,800'
+		],
+		[
+			'Garrett Winters',
+			'Accountant',
+			'Tokyo',
+			'8422',
+			'2011-07-25',
+			'$170,750'
+		],
+		[
+			'Ashton Cox',
+			'Junior Technical Author',
+			'San Francisco',
+			'1562',
+			'2009-01-12',
+			'$86,000'
+		],
+		[
+			'Cedric Kelly',
+			'Senior Javascript Developer',
+			'Edinburgh',
+			'6224',
+			'2012-03-29',
+			'$433,060'
+		]
+	];
 
 	beforeEach(() => {
 		DataTable.use(DT);
@@ -77,9 +112,7 @@ describe('DataTable props', () => {
 		);
 
 		await waitFor(() => {
-			const table = container.querySelector(
-				'table.dataTable'
-			);
+			const table = container.querySelector('table.dataTable');
 			expect(table).toHaveClass('testClass');
 		});
 	});
@@ -93,14 +126,16 @@ describe('DataTable props', () => {
 		);
 
 		await waitFor(() => {
-			const firstCell = container.querySelector('tbody tr:first-child td');
+			const firstCell = container.querySelector(
+				'tbody tr:first-child td'
+			);
 			expect(firstCell).toHaveTextContent('Airi Satou');
 		});
 	});
 
 	it('Can set options', async () => {
 		const { container } = render(
-			<DataTable ajax={mockAjax} options={{pageLength: 1}}>
+			<DataTable ajax={mockAjax} options={{ pageLength: 1 }}>
 				<Column title="Name" data="name" />
 				<Column title="Position" data="position" />
 			</DataTable>
@@ -123,6 +158,41 @@ describe('DataTable props', () => {
 
 		await waitFor(() => {
 			expect(table.current!.dt()!.page.info().recordsDisplay).toBe(2);
+		});
+	});
+
+	it('Slot rendering', async () => {
+		const { container } = render(
+			<DataTable
+				data={mockData}
+				className="display"
+				slots={{
+					0: (data: string, type: string, _row: any) => {
+						if (type === 'display') {
+							return <button>{data}</button>;
+						}
+						return data;
+					}
+				}}
+			>
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Position</th>
+						<th>Office</th>
+						<th>Extn.</th>
+						<th>Start date</th>
+						<th>Salary</th>
+					</tr>
+				</thead>
+			</DataTable>
+		);
+
+		await waitFor(() => {
+			const cells = container.querySelectorAll('tbody tr td');
+
+			expect(cells[0]?.textContent).toBe('Ashton Cox');
+			expect(cells[1]?.textContent).toBe('Junior Technical Author');
 		});
 	});
 });

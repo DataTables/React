@@ -160,6 +160,12 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 				props.children
 			);
 
+			// If not columns, remove this property and allow it to populate
+			// automatically in DataTables. Not ideal, this could be tidied up.
+			if (options.current.columns.length === 0) {
+				delete options.current.columns;
+			}
+
 			// If slots are defined, create `columnDefs` entries for them to
 			// apply to their target columns.
 			if (props.slots) {
