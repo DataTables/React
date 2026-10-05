@@ -184,4 +184,74 @@ describe('Column properties', () => {
 		expect(cells[2]?.textContent).toBe('2');
 		expect(cells[3]?.textContent).toBe('Bob');
 	});
+
+	it('Set a footer', () => {
+		const data = [
+			{ id: 1, name: 'Alice' },
+			{ id: 2, name: 'Bob' }
+		];
+
+		const { container } = render(
+			<DataTable data={data}>
+				<Column title="h1" footer="f1" data="id" />
+				<Column title="h2" footer="f2" data="name" />
+			</DataTable>
+		);
+
+		const headerCells = container.querySelectorAll('thead th');
+		expect(headerCells.length).toBe(2);
+		expect(headerCells[0]?.textContent).toBe('h1');
+		expect(headerCells[1]?.textContent).toBe('h2');
+
+		const footerCells = container.querySelectorAll('tfoot th');
+		expect(footerCells.length).toBe(2);
+		expect(footerCells[0]?.textContent).toBe('f1');
+		expect(footerCells[1]?.textContent).toBe('f2');
+	});
+
+	it('Footer with an empty string', () => {
+		const data = [
+			{ id: 1, name: 'Alice' },
+			{ id: 2, name: 'Bob' }
+		];
+
+		const { container } = render(
+			<DataTable data={data}>
+				<Column title="h1" footer="" data="id" />
+				<Column title="h2" footer="f2" data="name" />
+			</DataTable>
+		);
+
+		const headerCells = container.querySelectorAll('thead th');
+		expect(headerCells.length).toBe(2);
+		expect(headerCells[0]?.textContent).toBe('h1');
+		expect(headerCells[1]?.textContent).toBe('h2');
+
+		const footerCells = container.querySelectorAll('tfoot th');
+		expect(footerCells.length).toBe(2);
+		expect(footerCells[0]?.textContent).toBe('');
+		expect(footerCells[1]?.textContent).toBe('f2');
+	});
+
+	it('Footer with an empty string', () => {
+		const data = [
+			{ id: 1, name: 'Alice' },
+			{ id: 2, name: 'Bob' }
+		];
+
+		const { container } = render(
+			<DataTable data={data}>
+				<Column title="h1" data="id" />
+				<Column title="h2"data="name" />
+			</DataTable>
+		);
+
+		const headerCells = container.querySelectorAll('thead th');
+		expect(headerCells.length).toBe(2);
+		expect(headerCells[0]?.textContent).toBe('h1');
+		expect(headerCells[1]?.textContent).toBe('h2');
+
+		const footerCells = container.querySelectorAll('tfoot th');
+		expect(footerCells.length).toBe(0);
+	});
 });

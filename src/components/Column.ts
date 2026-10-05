@@ -12,6 +12,9 @@ export interface ColumnProps {
 	 */
 	data?: ColumnData;
 
+	/** Column footer text (can be an empty string to generate an empty cell) */
+	footer?: string;
+
 	/**
 	 * Additional DataTables column options (width, className, visible, etc.)
 	 */

@@ -427,6 +427,10 @@ function columnComponents(
 			columnOptions.data = null;
 		}
 
+		if (columnProps.footer !== undefined) {
+			columnOptions.footer = columnProps.footer;
+		}
+
 		if (columnProps.options) {
 			Object.assign(columnOptions, columnProps.options);
 		}
