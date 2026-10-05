@@ -274,11 +274,17 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 			};
 		}, []);
 
-		// Adjust column widths after the first batch of portals mounts
+		// Adjust column widths after the first batch of portals mounts, or if
+		// the table is scrolling and more portals mount.
 		useLayoutEffect(() => {
-			if (table.current && !initialAdjust.current && portals.length > 0) {
-				initialAdjust.current = true;
-				table.current.ready(() => table.current!.columns.adjust());
+			if (table.current && portals.length > 0) {
+				const ctx = table.current.settings()[0];
+				const isScrolling = ctx?.scroll.x || ctx?.scroll.y;
+
+				if (!initialAdjust.current || isScrolling) {
+					initialAdjust.current = true;
+					table.current.ready(() => table.current!.columns.adjust());
+				}
 			}
 		}, [portals]);
 
