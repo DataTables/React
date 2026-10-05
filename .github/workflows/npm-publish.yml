@@ -1,6 +1,9 @@
 # This workflow will build and run tests
 name: Build and test
 
+permissions:
+  contents: read
+
 on:
   pull_request:
   push:
