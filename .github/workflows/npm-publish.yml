@@ -1,21 +1,24 @@
-# This workflow will build and run tests
-name: Build and test
+name: Publish package to npm
 
 permissions:
+  id-token: write  # Required for OIDC
   contents: read
 
 on:
-  pull_request:
-  push:
+  release:
+    types: [created]
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: 24
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false  # never use caching in release builds
       - run: npm install
       - run: npm run build
       - run: npm run test
+      - run: npm stage publish
