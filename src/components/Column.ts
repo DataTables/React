@@ -2,8 +2,13 @@ import type { ColumnData, ColumnOptions } from 'datatables.net';
 import React from 'react';
 
 export interface ColumnProps {
-	/** Column header title */
-	title?: string;
+	/**
+	 * JSX or render function for cell content in this column. Can be static JSX
+	 * or a function receiving (data, type, row, meta).
+	 */
+	children?:
+		| React.ReactNode
+		| ((data: any, type: string, row: any, meta: any) => React.ReactNode);
 
 	/**
 	 * Data point property - points at the name, index of the data point to use
@@ -21,12 +26,15 @@ export interface ColumnProps {
 	options?: ColumnOptions;
 
 	/**
-	 * JSX or render function for cell content in this column. Can be static JSX
-	 * or a function receiving (data, type, row, meta).
+	 * Define a rendering function to display the data. Note that you can't use
+	 * a child node and a renderer at the same time. The child node will take
+	 * priority. If you need formatting when using child nodes, please perform
+	 * the formatting in the function.
 	 */
-	children?:
-		| React.ReactNode
-		| ((data: any, type: string, row: any, meta: any) => React.ReactNode);
+	render?: ColumnOptions['render'];
+
+	/** Column header title */
+	title?: string;
 }
 
 /**

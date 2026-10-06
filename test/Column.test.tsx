@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import DT from 'datatables.net';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -242,7 +242,7 @@ describe('Column properties', () => {
 		const { container } = render(
 			<DataTable data={data}>
 				<Column title="h1" data="id" />
-				<Column title="h2"data="name" />
+				<Column title="h2" data="name" />
 			</DataTable>
 		);
 
@@ -253,5 +253,32 @@ describe('Column properties', () => {
 
 		const footerCells = container.querySelectorAll('tfoot th');
 		expect(footerCells.length).toBe(0);
+	});
+
+	it('Number renderer', async () => {
+		const data = [
+			{ id: 1, name: 'Alice' },
+			{ id: 2000000, name: 'Bob' }
+		];
+
+		const { container } = render(
+			<DataTable data={data}>
+				<Column title="h1" data="id" />
+				<Column title="h2" data="id" render={DT.render.number('\'', ',', 2, '$')} />
+				<Column title="h3" data="name" />
+			</DataTable>
+		);
+
+		await waitFor(() => {
+			const body = container.querySelectorAll('tbody tr td');
+			expect(body.length).toBe(6);
+			expect(body[0]?.textContent).toBe('1');
+			expect(body[1]?.textContent).toBe("$1,00");
+			expect(body[2]?.textContent).toBe('Alice');
+
+			expect(body[3]?.textContent).toBe('2000000');
+			expect(body[4]?.textContent).toBe("$2'000'000,00");
+			expect(body[5]?.textContent).toBe('Bob');
+		});
 	});
 });

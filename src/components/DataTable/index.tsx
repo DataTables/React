@@ -415,10 +415,6 @@ function columnComponents(
 		const columnOptions = columns[colIdx] as ColumnOptions;
 		const columnProps = columnComp.props as ColumnProps;
 
-		if (columnProps.title !== undefined) {
-			columnOptions.title = columnProps.title;
-		}
-
 		if (columnProps.data !== undefined) {
 			columnOptions.data = columnProps.data;
 		}
@@ -429,6 +425,14 @@ function columnComponents(
 
 		if (columnProps.footer !== undefined) {
 			columnOptions.footer = columnProps.footer;
+		}
+
+		if (columnProps.title !== undefined) {
+			columnOptions.title = columnProps.title;
+		}
+
+		if (columnProps.render !== undefined) {
+			columnOptions.render = columnProps.render;
 		}
 
 		if (columnProps.options) {
