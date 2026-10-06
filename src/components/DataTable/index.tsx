@@ -218,6 +218,12 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 
 				// Stable draw listener: only updates state if portal contents
 				// change
+				let originalOn: Function;
+
+				if (options.current.on['draw']) {
+					originalOn = options.current.on['draw'];
+				}
+
 				options.current.on['draw'] = (e, settings: Context) => {
 					// On the first draw the table instance might not be set if
 					// the initialisation is sync.
@@ -253,8 +259,13 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 							// Keeps reference, so no re-render!
 							return prevPortals;
 						}
+
 						return nextPortals;
 					});
+
+					if (originalOn) {
+						originalOn(e, settings);
+					}
 				};
 
 				table.current = new DataTablesLib(
