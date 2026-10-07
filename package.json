@@ -29,12 +29,17 @@
 		"datatables.net",
 		"table"
 	],
-	"author": "SpryMedia Ltd",
+    "author": {
+        "name": "SpryMedia Ltd",
+        "url": "http://datatables.net"
+    },
 	"license": "MIT",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/DataTables/React.git"
     },
+    "homepage": "https://datatables.net/manual/components/react",
+    "bugs": "https://datatables.net/forums",
 	"devDependencies": {
 		"@rollup/plugin-commonjs": "^26.0.3",
 		"@rollup/plugin-node-resolve": "^15.3.1",
