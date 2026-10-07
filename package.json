@@ -31,6 +31,10 @@
 	],
 	"author": "SpryMedia Ltd",
 	"license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/DataTables/React.git"
+    },
 	"devDependencies": {
 		"@rollup/plugin-commonjs": "^26.0.3",
 		"@rollup/plugin-node-resolve": "^15.3.1",
