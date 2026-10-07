@@ -102,14 +102,27 @@ export interface DataTableComponent
 		DataTableProps & React.RefAttributes<DataTableRef>
 	> {
 	/**
-	 * Set the DataTables library to use for this component (e.g. the result
-	 * from `import DT from 'datatables.net-dt'` or `import DT from
+	 * Get the DataTables core library that has been set for use with this
+	 * component.
+	 *
+	 * @returns DataTables library
+	 */
+	use(): DTType;
+
+	/**
+	 * Set the DataTables library to use for this component (e.g. `DtCore` when
+	 * using `import DtCore from 'datatables.net-dt'` or `import DtCore from
 	 * 'datatables.net-bs5'`).
 	 *
 	 * @param dtLib DataTables core library
-	 * @returns
+	 * @returns The DataTables library that was set
 	 */
-	use: (dtLib: DTType) => void;
+	use(dtLib: DTType): DTType;
+
+	/**
+	 * Component version
+	 */
+	version: string;
 }
 
 // `any` here, so we can assign the `use` later - it is really a
@@ -333,9 +346,15 @@ const Component: any = React.forwardRef<DataTableRef, DataTableProps>(
 	}
 );
 
-Component.use = function (lib: DTType) {
-	DataTablesLib = lib;
+Component.use = function (lib?: DTType) {
+	if (lib) {
+		DataTablesLib = lib;
+	}
+
+	return DataTablesLib;
 };
+
+Component.version = '2.0.0';
 
 const Exporter: DataTableComponent = Component;
 

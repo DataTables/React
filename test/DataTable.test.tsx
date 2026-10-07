@@ -55,6 +55,10 @@ describe('DataTable props', () => {
 		DataTable.use(DT);
 	});
 
+	it('Version property is set', () => {
+		expect(typeof DataTable.version).toBe('string');
+	});
+
 	it('Simple DataTable test', () => {
 		const data = [
 			{ id: 1, name: 'Alice' },
