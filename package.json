@@ -47,6 +47,9 @@
 	},
 	"homepage": "https://datatables.net/manual/components/react",
 	"bugs": "https://datatables.net/forums",
+	"engines": {
+		"node": ">=12"
+	},
 	"devDependencies": {
 		"@arethetypeswrong/core": "^0.18.5",
 		"@testing-library/jest-dom": "^7.0.1",

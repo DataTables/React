@@ -24,7 +24,9 @@ export default defineConfig([
 		outExtensions: () => ({
 			js: '.mjs',
 			dts: '.d.mts'
-		})
+		}),
+		publint: true,
+	    attw: { profile: 'node16' },
 	},
 
 	// 2. CJS bundle + CJS types (dist/index.js + dist/index.d.ts)
