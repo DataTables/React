@@ -123,6 +123,13 @@ export interface DataTableComponent
 	 * Component version
 	 */
 	version: string;
+
+	/**
+	 * Column component.
+	 * 
+	 * Provides access to the Column component in a CommonJS environment.
+	 */
+	Column: typeof Column;
 }
 
 // `any` here, so we can assign the `use` later - it is really a
@@ -354,7 +361,9 @@ Component.use = function (lib?: DTType) {
 	return DataTablesLib;
 };
 
-Component.version = '2.0.0';
+Component.version = '2.0.1';
+
+Component.Column = Column;
 
 const Exporter: DataTableComponent = Component;
 
